@@ -212,6 +212,12 @@ ol li { margin-bottom: 12px; }
 .loading-text { font-size: 28px; font-weight: 800; margin-bottom: 16px; text-align: center; max-width: 80%; background: linear-gradient(to right, #f472b6, #38bdf8); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
 .timer-text { font-size: 18px; color: #94a3b8; font-family: monospace; background: rgba(0,0,0,0.5); padding: 10px 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 20px rgba(0,0,0,0.3);}
 
+/* Reveal Animations / Cascading Effects */
+.reveal { opacity: 0; transform: translateY(50px); transition: all 0.9s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.reveal.active { opacity: 1; transform: translateY(0); }
+.metric-cascade { opacity: 0; transform: translateY(40px) scale(0.9); transition: all 0.7s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.metric-cascade.active { opacity: 1; transform: translateY(0) scale(1); }
+
 @media(max-width:800px) { .form-grid, .metric-grid { grid-template-columns: 1fr; } }
 </style>
 </head>
@@ -228,7 +234,7 @@ ol li { margin-bottom: 12px; }
 </div>
 
 <div class="container">
-  <div class="card">
+  <div class="card reveal active">
     <h1>NeuroMark AI → Real TRIBE v2 Brain Plot</h1>
     <p class="subtitle">Upload a campaign asset. This frontend sends it to your Colab GPU via ngrok. The backend runs real TRIBE v2 inference, synthesizes NeuroMark metrics, and generates a dynamic brain-response heatmap.</p>
     
@@ -286,7 +292,7 @@ ol li { margin-bottom: 12px; }
     <div id="previewBox" class="preview"></div>
   </div>
   
-  <div class="card hidden" id="summaryCard">
+  <div class="card hidden reveal" id="summaryCard">
       <div class="result-title">
           <h2 style="margin:0;">NeuroMark Summary</h2>
           <span class="badge" id="emotionBadge">No result</span>
@@ -295,7 +301,7 @@ ol li { margin-bottom: 12px; }
       <div id="metricGrid" class="metric-grid"></div>
   </div>
   
-  <div class="card hidden" id="brainPlotCard">
+  <div class="card hidden reveal" id="brainPlotCard">
       <div class="result-title">
           <h2 style="margin:0;">TRIBE Brain Response Plot</h2>
           <span class="badge">Colab PNG Heatmap</span>
@@ -307,21 +313,33 @@ ol li { margin-bottom: 12px; }
       </div>
   </div>
   
-  <div class="card">
+  <div class="card reveal">
       <h2 style="margin-bottom:20px;">Frontend Outgoing Traffic</h2>
       <pre id="outgoingBox">No outgoing request yet.</pre>
   </div>
-  <div class="card">
+  <div class="card reveal">
       <h2 style="margin-bottom:20px;">Incoming Response From Colab</h2>
       <pre id="responseBox">No response yet.</pre>
   </div>
-  <div class="card">
+  <div class="card reveal">
       <h2 style="margin-bottom:20px;">Colab Traffic Logs</h2>
       <pre id="logsBox">No logs loaded yet.</pre>
   </div>
 </div>
 
 <script>
+const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+        if(entry.isIntersecting) {
+            entry.target.classList.add("active");
+        }
+    });
+}, { threshold: 0.1, rootMargin: "0px 0px -50px 0px" });
+function observeReveals() {
+    document.querySelectorAll('.reveal:not(.active), .metric-cascade:not(.active)').forEach(el => observer.observe(el));
+}
+document.addEventListener("DOMContentLoaded", observeReveals);
+
 const NGROK_HEADERS={"ngrok-skip-browser-warning":"true"};
 const fileInput=document.getElementById("fileInput"),previewBox=document.getElementById("previewBox"),fileInfoBox=document.getElementById("fileInfoBox"),statusBox=document.getElementById("statusBox"),outgoingBox=document.getElementById("outgoingBox"),responseBox=document.getElementById("responseBox"),logsBox=document.getElementById("logsBox"),apiUrlInput=document.getElementById("apiUrlInput"),targetEmotionInput=document.getElementById("targetEmotionInput"),audienceInput=document.getElementById("audienceInput"),objectiveInput=document.getElementById("objectiveInput"),shortClipInput=document.getElementById("shortClipInput"),useShortClipInput=document.getElementById("useShortClipInput"),summaryCard=document.getElementById("summaryCard"),summaryBox=document.getElementById("summaryBox"),metricGrid=document.getElementById("metricGrid"),emotionBadge=document.getElementById("emotionBadge"),brainPlotCard=document.getElementById("brainPlotCard"),brainPlotBox=document.getElementById("brainPlotBox");let latestBrainPlotDataUrl=null;
 fileInput.addEventListener("change",previewSelectedFile);
@@ -332,13 +350,13 @@ let timerInterval;
 let secondsElapsed = 0;
 async function parseResponse(r){const t=await r.text();try{return JSON.parse(t)}catch{return t}}
 async function checkServer(){const base=getApiBaseUrl();if(!base||base.includes("PASTE_NGROK_URL_HERE")){alert("Paste your Colab ngrok URL first.");return}setStatus("Checking Colab server...");outgoingBox.textContent=JSON.stringify({direction:"FRONTEND OUTGOING TO COLAB",endpoint:`${base}/health`,method:"GET",timestamp:new Date().toISOString()},null,2);try{const r=await fetch(`${base}/health`,{method:"GET",headers:NGROK_HEADERS});const data=await parseResponse(r);responseBox.textContent=JSON.stringify({direction:"FRONTEND INCOMING FROM COLAB",endpoint:"/health",status:r.status,ok:r.ok,response:data,timestamp:new Date().toISOString()},null,2);setStatus(r.ok?"Server is reachable.":"Server returned an error status.")}catch(e){responseBox.textContent="Server check failed: "+e.message;setStatus("Server check failed.")}}
-function renderSummary(data){const vector=data.neuromark_marketing_vector||{},emotion=data.emotion_measurement||{},crm=data.crm_matching||{},top=crm.top_recommendation||{};summaryCard.classList.remove("hidden");emotionBadge.textContent=emotion.detected_emotion||"Unknown";summaryBox.innerHTML=`<div class="row"><div class="pill">Detected emotion: ${escapeHtml(emotion.detected_emotion||"unknown")}</div><div class="pill">Dominant layer: ${escapeHtml(emotion.dominant_layer||"unknown")}</div><div class="pill">Chaos spike: ${escapeHtml(emotion.chaos_spike_second??"n/a")}s</div><div class="pill">Intent gap: ${escapeHtml(data.intent_vs_actual_gap??"n/a")}</div><div class="pill">Top segment: ${escapeHtml(top.recommended_segment||"unknown")}</div><div class="pill">Platform: ${escapeHtml(top.platform||"unknown")}</div><div class="pill">Audience score: ${escapeHtml(top.final_audience_score??"n/a")}</div></div><h3 style="margin-top:32px; margin-bottom: 0;">Recommended Creative Fixes</h3><ol>${(data.recommended_creative_fixes||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ol>`;metricGrid.innerHTML=Object.entries(vector).map(([k,v])=>`<div class="metric"><div class="name">${escapeHtml(k.replaceAll("_"," "))}</div><div class="value">${escapeHtml(v)}</div></div>`).join("");renderBrainPlot(data)}
+function renderSummary(data){const vector=data.neuromark_marketing_vector||{},emotion=data.emotion_measurement||{},crm=data.crm_matching||{},top=crm.top_recommendation||{};summaryCard.classList.remove("hidden");emotionBadge.textContent=emotion.detected_emotion||"Unknown";summaryBox.innerHTML=`<div class="row"><div class="pill">Detected emotion: ${escapeHtml(emotion.detected_emotion||"unknown")}</div><div class="pill">Dominant layer: ${escapeHtml(emotion.dominant_layer||"unknown")}</div><div class="pill">Chaos spike: ${escapeHtml(emotion.chaos_spike_second??"n/a")}s</div><div class="pill">Intent gap: ${escapeHtml(data.intent_vs_actual_gap??"n/a")}</div><div class="pill">Top segment: ${escapeHtml(top.recommended_segment||"unknown")}</div><div class="pill">Platform: ${escapeHtml(top.platform||"unknown")}</div><div class="pill">Audience score: ${escapeHtml(top.final_audience_score??"n/a")}</div></div><h3 style="margin-top:32px; margin-bottom: 0;">Recommended Creative Fixes</h3><ol>${(data.recommended_creative_fixes||[]).map(x=>`<li>${escapeHtml(x)}</li>`).join("")}</ol>`;metricGrid.innerHTML=Object.entries(vector).map(([k,v],i)=>`<div class="metric metric-cascade" style="transition-delay: ${i*0.08}s"><div class="name">${escapeHtml(k.replaceAll("_"," "))}</div><div class="value">${escapeHtml(v)}</div></div>`).join("");renderBrainPlot(data);setTimeout(observeReveals,50);}
 function renderBrainPlot(data){latestBrainPlotDataUrl=null;if(data.brain_plot&&data.brain_plot.base64){const mime=data.brain_plot.mime_type||"image/png";latestBrainPlotDataUrl=`data:${mime};base64,${data.brain_plot.base64}`;brainPlotCard.classList.remove("hidden");brainPlotBox.innerHTML=`<img src="${latestBrainPlotDataUrl}" alt="TRIBE brain response plot">`}else{brainPlotCard.classList.add("hidden");brainPlotBox.innerHTML=""}}
 function downloadBrainPlot(){if(!latestBrainPlotDataUrl){alert("No brain plot available yet.");return}const a=document.createElement("a");a.href=latestBrainPlotDataUrl;a.download="tribe_brain_response_plot.png";document.body.appendChild(a);a.click();document.body.removeChild(a)}
 async function sendFile(){const base=getApiBaseUrl(),f=fileInput.files[0];if(!base||base.includes("PASTE_NGROK_URL_HERE")){alert("Paste your Colab ngrok URL first.");return}if(!f){alert("Please select a file first.");return}const cat=getFileCategory(f);if(!["image","video"].includes(cat)){alert("This API supports image/video only.");return}const fd=new FormData();fd.append("file",f);fd.append("target_emotion",targetEmotionInput.value);fd.append("target_audience",audienceInput.value);fd.append("objective",objectiveInput.value);fd.append("use_short_clip",useShortClipInput.value);fd.append("short_seconds",shortClipInput.value);fd.append("return_brain_plot","true");outgoingBox.textContent=JSON.stringify({direction:"FRONTEND OUTGOING TO COLAB",endpoint:`${base}/submit_job`,method:"POST",timestamp:new Date().toISOString()},null,2);setStatus("Submitting job to GPU...");document.getElementById("loadingOverlay").classList.remove("hidden");document.getElementById("loadingStateText").textContent="Uploading asset to Colab...";secondsElapsed=0;document.getElementById("loadingTimerText").textContent=`Time elapsed: 0s (Estimated: 60-120s)`;clearInterval(timerInterval);timerInterval=setInterval(()=>{secondsElapsed++;document.getElementById("loadingTimerText").textContent=`Time elapsed: ${secondsElapsed}s (Estimated: 60-120s)`},1000);try{const r=await fetch(`${base}/submit_job`,{method:"POST",headers:NGROK_HEADERS,body:fd});const data=await parseResponse(r);if(!r.ok||data.status==="error"){throw new Error(data.message||"Upload failed")}pollJobStatus(base,data.job_id)}catch(e){document.getElementById("loadingOverlay").classList.add("hidden");clearInterval(timerInterval);responseBox.textContent="Upload failed: "+e.message;setStatus("Upload failed. Check ngrok URL and Colab server.")}}
 function pollJobStatus(base,jobId){pollInterval=setInterval(async()=>{try{const r=await fetch(`${base}/job_status/${jobId}`,{headers:NGROK_HEADERS});const data=await parseResponse(r);if(data.status==="processing"){document.getElementById("loadingStateText").textContent=data.progress||"Processing on GPU..."}else if(data.status==="completed"){clearInterval(pollInterval);clearInterval(timerInterval);document.getElementById("loadingOverlay").classList.add("hidden");responseBox.textContent=JSON.stringify({direction:"FRONTEND INCOMING FROM COLAB",status:"success",response:data.result,timestamp:new Date().toISOString()},null,2);renderSummary(data.result);setStatus("Analysis and brain plot complete.")}else if(data.status==="failed"){clearInterval(pollInterval);clearInterval(timerInterval);document.getElementById("loadingOverlay").classList.add("hidden");alert("Backend Error: "+data.error);setStatus("Colab returned an error: "+data.error)}}catch(e){console.error("Polling error",e)}},3000)}
 async function getLogs(){const base=getApiBaseUrl();if(!base||base.includes("PASTE_NGROK_URL_HERE")){alert("Paste your Colab ngrok URL first.");return}setStatus("Fetching Colab logs...");outgoingBox.textContent=JSON.stringify({direction:"FRONTEND OUTGOING TO COLAB",endpoint:`${base}/logs`,method:"GET",timestamp:new Date().toISOString()},null,2);try{const r=await fetch(`${base}/logs`,{method:"GET",headers:NGROK_HEADERS});const data=await parseResponse(r);logsBox.textContent=JSON.stringify(data,null,2);setStatus(r.ok?"Colab logs loaded.":"Could not load logs.")}catch(e){logsBox.textContent="Could not fetch logs: "+e.message;setStatus("Could not fetch Colab logs.")}}
-function clearFrontend(){fileInput.value="";previewBox.innerHTML="";fileInfoBox.innerHTML="";outgoingBox.textContent="No outgoing request yet.";responseBox.textContent="No response yet.";logsBox.textContent="No logs loaded yet.";metricGrid.innerHTML="";summaryBox.innerHTML="";brainPlotBox.innerHTML="";latestBrainPlotDataUrl=null;brainPlotCard.classList.add("hidden");summaryCard.classList.add("hidden");statusBox.classList.add("hidden")}
+function clearFrontend(){fileInput.value="";previewBox.innerHTML="";fileInfoBox.innerHTML="";outgoingBox.textContent="No outgoing request yet.";responseBox.textContent="No response yet.";logsBox.textContent="No logs loaded yet.";metricGrid.innerHTML="";summaryBox.innerHTML="";brainPlotBox.innerHTML="";latestBrainPlotDataUrl=null;brainPlotCard.classList.add("hidden");summaryCard.classList.add("hidden");statusBox.classList.add("hidden"); observeReveals();}
 </script>
 </body>
 </html>
