@@ -1,0 +1,15 @@
+tribev2[plotting] @ git+https://github.com/facebookresearch/tribev2.git
+huggingface_hub
+gdown
+pandas
+numpy==2.2.6
+matplotlib
+opencv-python-headless
+pillow
+jedi
+fastapi
+uvicorn[standard]
+python-multipart
+nest_asyncio
+pyngrok
+requests

@@ -1,0 +1,45 @@
+{
+  "schema_version": "neuromark_real_tribe_api_v2",
+  "status": "success",
+  "campaign": {
+    "asset_name": "sample.mp4",
+    "target_emotion": "Urgency"
+  },
+  "real_tribe_evidence": {
+    "preds_shape": [
+      6,
+      20484
+    ],
+    "num_timesteps": 6,
+    "num_vertices": 20484
+  },
+  "neuromark_marketing_vector": {
+    "visual_attention": 35.72,
+    "emotional_warmth": 57.9,
+    "motivation_reward": 39.51,
+    "cognitive_load": 35.4,
+    "memory_encoding": 48.09,
+    "trust_safety": 58.44,
+    "urgency": 37.99,
+    "confusion_risk": 36.46,
+    "calm_aesthetic_style": 62.21,
+    "theme_fit": 45.87
+  },
+  "emotion_measurement": {
+    "detected_emotion": "Apathy",
+    "dominant_layer": "Emotional",
+    "chaos_spike_second": 5
+  },
+  "crm_matching": {
+    "top_recommendation": {
+      "recommended_segment": "Exam-focused students",
+      "platform": "TikTok/Reels",
+      "final_audience_score": 82.12
+    }
+  },
+  "brain_plot": {
+    "filename": "sample.png",
+    "mime_type": "image/png",
+    "base64": "BASE64_PNG_HERE"
+  }
+}
